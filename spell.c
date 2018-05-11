@@ -6,7 +6,7 @@
 #include "hashtable.h"
 #include <stdlib.h>
 
-#define LOAD_AVERAGE 100 // average number of items per slot for hash table
+#define LOAD_AVERAGE 13 // average number of items per slot for hash table
 
 //helper function, minimum of 2
 int min(int a, int b){
@@ -91,7 +91,7 @@ void print_edit_distance(char *word1, char *word2) {
 
 //generate and print all lower case alphabetic strings within a
 //Levenshtein edit distance of 1 from the input word
-void all_edits(char* word, int *count, char** edits){
+void all_edits(char* word, int *count, char** edits, int lev_dist){
 	static const char* alphabet = "abcdefghijklmnopqrstuvwxyz";
 	const int nAlphabet = 26;
 	int len = strlen(word);
@@ -146,6 +146,7 @@ void all_edits(char* word, int *count, char** edits){
 }
 // see Assignment Task 2: Enumerating all possible edits
 void print_all_edits(char *word) {
+
 	int *count = malloc(sizeof *count);
 	*count = 0;
 	const int nAlphabet = 26;
@@ -161,7 +162,8 @@ void print_all_edits(char *word) {
 		edits[i] = calloc(len+2, sizeof(char));
 	}
 	char** edits_copy = edits;
-	all_edits(word, count, edits_copy);
+	int dist = 1;
+	all_edits(word, count, edits_copy, dist);
 	for ( i = 0; i < *count; i++) {
 		printf("%s\n", edits[i]);
 	}
@@ -173,33 +175,56 @@ void print_all_edits(char *word) {
 	free(count);
 }
 
-//store a dictionary linked list into hashtable, assuming there arent any
+//store a list linked list into hashtable, assuming there arent any
 //repeating words in the dictionary
-void hash_dictionary(List *dictionary, HashTable *table){
+void make_hashtable(List *list, HashTable *table, bool dictionary){
 
-	int size = dictionary -> size;
+	int size = list -> size;
 	int i;
-	Node *current = dictionary -> head;
+	Node *current = list -> head;
 	// iterate through dictionary list
 	for ( i = 0; i < size; i++) {
-		hash_table_put(table, current->data, 0);
+		hash_table_put(table, current->data, 0, dictionary);
 		current = current ->next;
 	}
 }
-void hash_doc(List *document, HashTable *table){
-
-}
+// void spell_check(HashTable *dictionary, List *document, HashTable *doc_table){
+//
+//
+// }
 void check_docs(List *dictionary, List *document){
 	int dic_size = dictionary -> size;
 
-	HashTable *table = new_hash_table(dic_size/LOAD_AVERAGE);
-	hash_dictionary(dictionary, table);
-	print_hash_table(table);
-
+	HashTable *table = new_hash_table(dic_size/LOAD_AVERAGE, true);
+	make_hashtable(dictionary, table, true);
 	int doc_size = document -> size;
-	//HashTable *doc_words = new_hash_table(doc_size/LOAD_AVERAGE);
-	free_hash_table(table);
-//	free_hash_table(doc_words);
+	HashTable *doc_table = new_hash_table(doc_size/LOAD_AVERAGE, false);
+	make_hashtable(document, doc_table, false);
+	// print_hash_table(doc_words);
+
+	int i;
+	Node *current = document -> head;
+	// iterate through dictionary list
+	for ( i = 0; i < doc_size; i++) {
+		char* examined =  current->data;
+		// unique to task 3
+		char* stored = hash_table_get(doc_table, examined);
+		if (stored) {
+			printf("%s\n", stored);
+		}else{
+			bool match = hash_table_has(table,examined);
+			if (match){
+				printf("%s\n", examined);
+				hash_table_put(doc_table, examined, examined, false);
+			}else{
+				printf("%s?\n", examined);
+			}
+		}
+		current = current ->next;
+	}
+
+	free_hash_table(table, true);
+	free_hash_table(doc_table, false);
 }
 // see Assignment Task 3: Spell checking
 void print_checked(List *dictionary, List *document) {

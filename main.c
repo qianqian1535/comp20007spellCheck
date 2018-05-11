@@ -1,11 +1,11 @@
 /* * * * * * * * *
  * Main program:
  * reads command line options, processes input data, calls assignment functions
- * 
+ *
  * created for COMP20007 Design of Algorithms - Assignment 2, 2018
  * by Matt Farrugia <matt.farrugia@unimelb.edu.au>
  */
-
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +15,7 @@
 #include "spell.h"
 
 /*                         DO NOT CHANGE THIS FILE
- * 
+ *
  * DO NOT modify any of the constants, types, functions or anything else
  * defined inside this file.
  *
@@ -51,7 +51,7 @@ void free_word_list(List *list);
 
 // program entry point
 int main(int argc, char **argv) {
-	
+
 	// parse and validate command line options
 	Options options = get_options(argc, argv);
 	if (options.invalid) {
@@ -70,17 +70,26 @@ int main(int argc, char **argv) {
 		List *dictionary = read_word_list(options.dicfile);
 		List *document   = read_word_list(options.docfile);
 
+		clock_t start_t, end_t, total_t;
+		start_t = clock();
+		printf("Starting of the tasks, start_t = %ld\n", start_t);
 		if (options.task == TASK_CHECK) {
 			print_checked(dictionary, document);
 
 		} else { // options.task == TASK_SPELL
 			print_corrected(dictionary, document);
 		}
+		end_t = clock();
+		printf("End of the big task, end_t = %ld\n", end_t - start_t);
 
+		total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+		printf("Total time taken by CPU: %lu secs\n", total_t  );
+		// printf("Exiting of the program...\n");
 		// clean up
 		free_word_list(dictionary);
 		free_word_list(document);
 	}
+
 
 	// done!
 	exit(EXIT_SUCCESS);
@@ -94,7 +103,7 @@ Task strtotask(char *str);
 
 // read command line options into Options struct
 Options get_options(int argc, char **argv) {
-	
+
 	// create the Options structure with defaults
 	Options options = {
 		.task    = TASK_NONE,
@@ -109,7 +118,7 @@ Options get_options(int argc, char **argv) {
 	if (argc >= 2) {
 		options.task = strtotask(argv[1]);
 	}
-	
+
 	// then branch based on task to process remaining arguments
 	int argc_remaining = argc - 2; // don't count the program name or task
 
@@ -122,7 +131,7 @@ Options get_options(int argc, char **argv) {
 		fprintf(stderr, " check: spell checking                 (task 3)\n");
 		fprintf(stderr, " spell: spelling correction            (task 4)\n");
 		options.invalid = 1; // true
-	
+
 
 	} else if (options.task == TASK_DIST) {
 		if (argc_remaining == 2) {
@@ -178,7 +187,7 @@ Options get_options(int argc, char **argv) {
 			options.invalid = 1; // true
 		}
 	}
-	
+
 	return options;
 }
 
@@ -215,12 +224,12 @@ List *read_word_list(FILE *file) {
 	while (fgets(line, MAXIMUM_WORD_LEN, file)) {
 		int linelen = strlen(line);
 		lines_read++;
-		
+
 		if (linelen == 1) {
 			// a completely blank line: consider this the end of input
 			break;
 		}
-		
+
 		// otherwise, there is at least one character. great!
 		// strip the newline if it exists.
 		if (line[linelen-1] == '\n') {

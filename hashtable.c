@@ -1,11 +1,14 @@
+
 /* * * * * * *
- * Hash table with separate chaining in a linked list
- *
- * created for COMP20007 Design of Algorithms
- * by Matt Farrugia <matt.farrugia@unimelb.edu.au>
- *
- * move-to-front added by ...
- */
+* Hash table with separate chaining in a linked list
+*
+* created for COMP20007 Design of Algorithms
+* by Matt Farrugia <matt.farrugia@unimelb.edu.au>
+*
+* move-to-front added by ...
+*/
+//end_t = 5072786 both table, just compare
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,17 +24,17 @@
 
 
 /* * *
- * HELPER DATA STRUCTURE: LINKED LIST OF BUCKETS
- */
+* HELPER DATA STRUCTURE: LINKED LIST OF BUCKETS
+*/
 
 typedef struct bucket Bucket;
 struct bucket {
 	char *key;
-	int value;
+	char *value;
 	Bucket *next;
 };
 
-Bucket *new_bucket(char *key, int value) {
+Bucket *new_bucket(char *key, char *value,  bool dictionary) {
 	Bucket *bucket = malloc(sizeof *bucket);
 	assert(bucket);
 
@@ -39,17 +42,22 @@ Bucket *new_bucket(char *key, int value) {
 	bucket->key = malloc((sizeof *bucket->key) * (strlen(key) + 1));
 	assert(bucket->key);
 	strcpy(bucket->key, key);
+	if (!dictionary){
+		bucket->value = malloc((sizeof *bucket->key) * (strlen(key) + 5));
+	}
 
-	bucket->value = value;
 	bucket->next = NULL;
 
 	return bucket;
 }
 
 // Warning: does not free bucket->next
-void free_bucket(Bucket *bucket) {
+void free_bucket(Bucket *bucket, bool dictionary) {
 	assert(bucket != NULL);
 	free(bucket->key);
+	// if (!dictionary){
+	// 	free(bucket->value);
+	// }
 	free(bucket);
 }
 
@@ -60,10 +68,10 @@ struct table {
 
 
 /* * *
- * HASH TABLE CREATION/DELETION
- */
+* HASH TABLE CREATION/DELETION
+*/
 
-HashTable *new_hash_table(int size) {
+HashTable *new_hash_table(int size,  bool dictionary) {
 	HashTable *table = malloc(sizeof *table);
 	assert(table);
 
@@ -78,7 +86,7 @@ HashTable *new_hash_table(int size) {
 	return table;
 }
 
-void free_hash_table(HashTable *table) {
+void free_hash_table(HashTable *table,  bool dictionary) {
 	assert(table != NULL);
 
 	int i;
@@ -87,7 +95,7 @@ void free_hash_table(HashTable *table) {
 		this_bucket = table->buckets[i];
 		while (this_bucket) {
 			next_bucket = this_bucket->next;
-			free_bucket(this_bucket);
+			free_bucket(this_bucket, dictionary);
 			this_bucket = next_bucket;
 		}
 	}
@@ -97,8 +105,8 @@ void free_hash_table(HashTable *table) {
 
 
 /* * *
- * HASHING HELPER FUNCTIONS
- */
+* HASHING HELPER FUNCTIONS
+*/
 
 int h(char *key, int size) {
 	return hash(key, size, HASH_METHOD);
@@ -109,33 +117,50 @@ bool equal(char *a, char *b) {
 
 
 /* * *
- * HASH TABLE FUNCTIONS
- */
+* HASH TABLE FUNCTIONS
+*/
 
-void hash_table_put(HashTable *table, char *key, int value) {
+void hash_table_put(HashTable *table, char *key, char *value, bool dictionary) {
+
 	assert(table != NULL);
 	assert(key != NULL);
 
 	int hash_value = h(key, table->size);
 
-	// look for existing key
-	Bucket *bucket = table->buckets[hash_value];
-	while (bucket) {
+	if(dictionary){
+		//assuming every word will be unique in dictionary
+		Bucket *new = new_bucket(key, value, dictionary);
+		new->next = table->buckets[hash_value];
+		table->buckets[hash_value] = new;
+	}else{
+		// look for existing key
+		Bucket *bucket = table->buckets[hash_value];
+		Bucket *previous = NULL;
+		while (bucket) {
+			if (equal(key, bucket->key)) {
 
-		if (equal(key, bucket->key)) {
-			bucket->value = value;
-			return;
+				// move to front on modify
+				if (previous) {
+					previous->next = bucket->next;
+					bucket->next = table->buckets[hash_value];
+					table->buckets[hash_value] = bucket;
+				}
+				bucket->value = value;
+				return;
+			}
+			previous = bucket;
+			bucket = bucket->next;
 		}
-		bucket = bucket->next;
-	}
 
-	// if key wasn't found, add it at front of list
-	Bucket *new = new_bucket(key, value);
-	new->next = table->buckets[hash_value];
-	table->buckets[hash_value] = new;
+		// if key wasn't found, add it at front of list
+		Bucket *new = new_bucket(key, value, dictionary);
+		new->next = table->buckets[hash_value];
+		table->buckets[hash_value] = new;
+	}
 }
 
-int hash_table_get(HashTable *table, char *key) {
+char* hash_table_get(HashTable *table, char *key) {
+
 	assert(table != NULL);
 	assert(key != NULL);
 
@@ -143,16 +168,33 @@ int hash_table_get(HashTable *table, char *key) {
 
 	// look for existing key
 	Bucket *bucket = table->buckets[hash_value];
+	Bucket *previous = NULL;
 	while (bucket) {
 		if (equal(key, bucket->key)) {
-			return bucket->value;
+
+			// move to front on access
+			if (previous) {
+				previous->next = bucket->next;
+				bucket->next = table->buckets[hash_value];
+				table->buckets[hash_value] = bucket;
+			}
+			// printf(" getting %s value %s\n",key, bucket->value);
+			// return bucket->value;
+			if (bucket->value) {
+				if(strlen(bucket->value)> 0 ){
+					return bucket->value;
+				}
+			}else{
+				return 0;
+			}
 		}
+		previous = bucket;
 		bucket = bucket->next;
 	}
 
 	// key doesn't exist!
-	fprintf(stderr, "error: key \"%s\" not found in table\n", key);
-	exit(1);
+	// fprintf(stderr, "error: key \"%s\" not found in table\n", key);
+	return 0;
 }
 
 bool hash_table_has(HashTable *table, char *key) {
@@ -163,21 +205,29 @@ bool hash_table_has(HashTable *table, char *key) {
 
 	// look for existing key
 	Bucket *bucket = table->buckets[hash_value];
+	Bucket *previous = NULL;
 	while (bucket) {
 		if (equal(key, bucket->key)) {
+
+			// move to front on lookup
+			if (previous) {
+				previous->next = bucket->next;
+				bucket->next = table->buckets[hash_value];
+				table->buckets[hash_value] = bucket;
+			}
+
 			return true;
 		}
+		previous = bucket;
 		bucket = bucket->next;
 	}
 
 	// key doesn't exist!
 	return false;
 }
-
-
 /* * *
- * PRINTING FUNCTIONS
- */
+* PRINTING FUNCTIONS
+*/
 
 void print_hash_table(HashTable *table) {
 	assert(table != NULL);
@@ -198,7 +248,7 @@ void fprint_hash_table(FILE *file, HashTable *table) {
 		Bucket *bucket;
 		bucket = table->buckets[i];
 		while (bucket && j < PRINT_LIMIT) {
-			fprintf(file, "->(\"%s\": %d)", bucket->key, bucket->value);
+			fprintf(file, "->(\"%s\": %s)", bucket->key, bucket->value);
 			bucket = bucket->next;
 			j++;
 		}

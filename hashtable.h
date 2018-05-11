@@ -11,11 +11,11 @@
 
 typedef struct table HashTable;
 
-HashTable *new_hash_table(int size);
-void free_hash_table(HashTable *table);
+HashTable *new_hash_table(int size, bool dictionary);
+void free_hash_table(HashTable *table, bool dictionary);
 
-void hash_table_put(HashTable *table, char *key, int value);
-int  hash_table_get(HashTable *table, char *key);
+void hash_table_put(HashTable *table, char *key, char *value, bool dictionary);
+char*  hash_table_get(HashTable *table, char *key);
 bool hash_table_has(HashTable *table, char *key);
 
 void print_hash_table(HashTable *table);
