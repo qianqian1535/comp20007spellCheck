@@ -7,7 +7,8 @@
 #include <stdlib.h>
 
 #define LOAD_AVERAGE 13 // average number of items per slot for hash table
-
+#define MAXDIST 3 //maximum levenshtein distance corrected
+#define NUM_ALPHABET 26
 //helper function, minimum of 2
 int min(int a, int b){
 	if (a < b){
@@ -89,13 +90,20 @@ void print_edit_distance(char *word1, char *word2) {
 	printf("%d\n", levenshtein(word1, word2));
 }
 
-//generate and print all lower case alphabetic strings within a
+//helper function, returns number of edits with dist 1
+int num_edits(int len){
+	// number of results deletion + substitution + addition
+	int n_results = len + len * NUM_ALPHABET + (len+1)* NUM_ALPHABET;
+	return n_results;
+}
+
+//generate all lower case alphabetic strings within a
 //Levenshtein edit distance of 1 from the input word
-void all_edits(char* word, int *count, char** edits, int lev_dist){
+void all_edits(char* word, char** edits){
 	static const char* alphabet = "abcdefghijklmnopqrstuvwxyz";
 	const int nAlphabet = 26;
 	int len = strlen(word);
-
+	int count = 0;
 	int i, j;
 	//delete a letter from word
 	for (i = 0; i < len; i++) {
@@ -107,9 +115,9 @@ void all_edits(char* word, int *count, char** edits, int lev_dist){
 		// everything after word[i]
 		strcat(edited, word+i+1);
 		// copy result into array
-		strcpy(edits[*count],edited);
+		strcpy(edits[count],edited);
 		free(edited);
-		(*count)++;
+		count++;
 	}
 
 	char *copy = malloc(strlen(word)+1);
@@ -118,8 +126,8 @@ void all_edits(char* word, int *count, char** edits, int lev_dist){
 		for ( j = 0; j < nAlphabet; j++) {
 			strcpy(copy,word);
 			copy[i] = alphabet[j];
-			strcpy(edits[*count],copy);
-			(*count)++;
+			strcpy(edits[count],copy);
+			(count)++;
 		}
 
 	}
@@ -138,21 +146,25 @@ void all_edits(char* word, int *count, char** edits, int lev_dist){
 			// everything after word[i]
 			strcat(edited, word+i);
 			// copy result into array
-			strcpy(edits[*count],edited);
+			strcpy(edits[count],edited);
 			free(edited);
-			(*count)++;
+			count++;
 		}
 	}
 }
-// see Assignment Task 2: Enumerating all possible edits
-void print_all_edits(char *word) {
 
-	int *count = malloc(sizeof *count);
-	*count = 0;
-	const int nAlphabet = 26;
+void freeStringArray(char** edits, char* word){
+	int i, n_results = num_edits(strlen(word));
+	for(i = 0; i < n_results; i++){
+		free(edits[i]);
+	}
+	free(edits);
+}
+
+char** generate_edits(char *word){
+
 	int len = strlen(word);
-	// number of results deletion + substitution + addition
-	int n_results = len + len * nAlphabet + (len+1)* nAlphabet;
+	int n_results = num_edits(len);
 	//initialise string array to store all the edits
 	char** edits = calloc( n_results+1 ,sizeof(char*));
 
@@ -162,17 +174,20 @@ void print_all_edits(char *word) {
 		edits[i] = calloc(len+2, sizeof(char));
 	}
 	char** edits_copy = edits;
-	int dist = 1;
-	all_edits(word, count, edits_copy, dist);
-	for ( i = 0; i < *count; i++) {
+	all_edits(word, edits_copy);
+
+	return edits_copy;
+}
+
+// see Assignment Task 2: Enumerating all possible edits
+void print_all_edits(char *word) {
+	int i, n_results = num_edits(strlen(word));
+	char** edits = generate_edits(word);//printing levenshtein dist of 1 here
+	for ( i = 0; i < n_results; i++) {
 		printf("%s\n", edits[i]);
 	}
-	// free string array
-	for(i = 0; i < n_results; i++){
-		free(edits[i]);
-	}
-	free(edits);
-	free(count);
+	freeStringArray( edits,  word);
+
 }
 
 //store a list linked list into hashtable, assuming there arent any
@@ -188,11 +203,10 @@ void make_hashtable(List *list, HashTable *table, bool dictionary){
 		current = current ->next;
 	}
 }
-// void spell_check(HashTable *dictionary, List *document, HashTable *doc_table){
-//
-//
-// }
-void check_docs(List *dictionary, List *document){
+
+
+
+void check_docs(List *dictionary, List *document, int max_lev){
 	int dic_size = dictionary -> size;
 
 	HashTable *table = new_hash_table(dic_size/LOAD_AVERAGE, true);
@@ -207,16 +221,50 @@ void check_docs(List *dictionary, List *document){
 	// iterate through dictionary list
 	for ( i = 0; i < doc_size; i++) {
 		char* examined =  current->data;
-		// unique to task 3
+
 		char* stored = hash_table_get(doc_table, examined);
+		//check if we've processed the same word
 		if (stored) {
 			printf("%s\n", stored);
 		}else{
-			bool match = hash_table_has(table,examined);
-			if (match){
-				printf("%s\n", examined);
-				hash_table_put(doc_table, examined, examined, false);
-			}else{
+
+			int j;
+			int n_variations;
+			char** edits = malloc(sizeof(char*));//list of possible corrections
+			edits[0] = examined;
+			// printf("assigned edits %s\n", edits[0]);
+			bool matched = false;
+			//
+			for ( j = 0; (j <= max_lev)&& !matched; j++) {
+				n_variations = sizeof(edits)/sizeof(edits[0]);
+				// printf("n_variations %d\n", n_variations);
+				if (j == 0) {
+					// if lev distance is 0, the number of words searched is 1
+					n_variations = 1;
+				}
+				// else{
+				// 	n_variations =
+				// }
+				int k;
+				for ( k = 0; k < n_variations; k++) {
+					char* correction = edits[k];
+					// printf("before key is null assigned edits %s\n", edits[0]);
+					bool match = hash_table_has(table, correction);
+					if (match){
+						printf("%s\n", correction);
+						//store in hashtable ofr future loopup of this word
+						hash_table_put(doc_table, examined, correction, false);
+						matched = true;
+						break;
+					}else{
+						//consider using list for edits
+					}
+				}
+
+			}
+			free(edits);
+			//if no matches after the max levenshtein distance is tried
+			if (!matched) {
 				printf("%s?\n", examined);
 			}
 		}
@@ -226,12 +274,13 @@ void check_docs(List *dictionary, List *document){
 	free_hash_table(table, true);
 	free_hash_table(doc_table, false);
 }
+
 // see Assignment Task 3: Spell checking
 void print_checked(List *dictionary, List *document) {
-	check_docs(dictionary, document);
+	check_docs(dictionary, document, 0); //0 is the value of lev distance
 }
 
 // see Assignment Task 4: Spelling correction
 void print_corrected(List *dictionary, List *document) {
-	printf("not yet implemented: put code for task 4 here\n");
+	check_docs(dictionary, document, 3); //0 is the value of lev distance
 }

@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 		List *dictionary = read_word_list(options.dicfile);
 		List *document   = read_word_list(options.docfile);
 
-		clock_t start_t, end_t, total_t;
+		clock_t start_t, end_t;
 		start_t = clock();
 		printf("Starting of the tasks, start_t = %ld\n", start_t);
 		if (options.task == TASK_CHECK) {
@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
 		end_t = clock();
 		printf("End of the big task, end_t = %ld\n", end_t - start_t);
 
-		total_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
-		printf("Total time taken by CPU: %lu secs\n", total_t  );
+		double total = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+		printf("Total time taken by CPU: %f secs\n", total  );
 		// printf("Exiting of the program...\n");
 		// clean up
 		free_word_list(dictionary);

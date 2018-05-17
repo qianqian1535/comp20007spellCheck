@@ -1,11 +1,9 @@
 
 /* * * * * * *
 * Hash table with separate chaining in a linked list
-*
-* created for COMP20007 Design of Algorithms
+* modified based on COMP20007 Design of Algorithms workshop 9 solutions
 * by Matt Farrugia <matt.farrugia@unimelb.edu.au>
 *
-* move-to-front added by ...
 */
 //end_t = 5072786 both table, just compare
 
@@ -98,8 +96,9 @@ void free_hash_table(HashTable *table,  bool dictionary) {
 			free_bucket(this_bucket, dictionary);
 			this_bucket = next_bucket;
 		}
-	}
 
+	}
+	free(table->buckets);
 	free(table);
 }
 
