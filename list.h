@@ -12,7 +12,7 @@
 #include <stdbool.h>
 
 /*                         DO NOT CHANGE THIS FILE
- * 
+ *
  * DO NOT modify the structs, types or function prototypes defined in this file.
  *
  * We will test your assignment with an unmodified version of this file. Any
@@ -21,7 +21,7 @@
 
 
 // a list node points to the next node in the list, and to some data
-// these values can be used, but should not be *modified* outside of list.c. 
+// these values can be used, but should not be *modified* outside of list.c.
 // they are read-only!
 typedef struct node Node;
 struct node {
@@ -31,7 +31,7 @@ struct node {
 };
 
 // a list points to its first and last nodes, and stores its size (num. nodes)
-// these values can be used, but should not be *modified* outside of list.c. 
+// these values can be used, but should not be *modified* outside of list.c.
 // they are read-only!
 typedef struct list List;
 struct list {
@@ -55,6 +55,11 @@ void list_add_start(List *list, void *data);
 // add an element to the back of a list
 // this operation is O(1)
 void list_add_end(List *list, void *data);
+
+
+//add a list to the end of the target list
+//this operation is O(1)
+void append_list(List* original, List* to_add);
 
 // remove and return the front data element from a list
 // this operation is O(1)

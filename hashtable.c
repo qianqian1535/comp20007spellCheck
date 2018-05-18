@@ -20,19 +20,25 @@
 
 #define PRINT_LIMIT 10
 
+/* * * * * * *
+ * Hash table with separate chaining in a linked list
+ * 2 parallel tables, one with int as value and one with char* (doc table)
+ * created for COMP20007 Design of Algorithms
+ * by Matt Farrugia <matt.farrugia@unimelb.edu.au>
+ *
+ * move-to-front added by ...
+ */
 
-/* * *
-* HELPER DATA STRUCTURE: LINKED LIST OF BUCKETS
-*/
+
 
 typedef struct bucket Bucket;
 struct bucket {
 	char *key;
-	char *value;
+	int value;
 	Bucket *next;
 };
 
-Bucket *new_bucket(char *key, char *value,  bool dictionary) {
+Bucket *new_bucket(char *key, int value) {
 	Bucket *bucket = malloc(sizeof *bucket);
 	assert(bucket);
 
@@ -40,9 +46,40 @@ Bucket *new_bucket(char *key, char *value,  bool dictionary) {
 	bucket->key = malloc((sizeof *bucket->key) * (strlen(key) + 1));
 	assert(bucket->key);
 	strcpy(bucket->key, key);
-	if (!dictionary){
-		bucket->value = malloc((sizeof *bucket->key) * (strlen(key) + 5));
-	}
+
+	bucket->value = value;
+	bucket->next = NULL;
+
+	return bucket;
+}
+
+// Warning: does not free bucket->next
+void free_bucket(Bucket *bucket) {
+	assert(bucket != NULL);
+	free(bucket->key);
+	free(bucket);
+}
+
+/* * *
+* HELPER DATA STRUCTURE: LINKED LIST OF BUCKETS
+*/
+
+typedef struct docbucket Docbucket;
+struct docbucket {
+	char *key;
+	char *value;
+	Docbucket *next;
+};
+
+Docbucket *new_docbucket(char *key, char *value) {
+	Docbucket *bucket = malloc(sizeof *bucket);
+	assert(bucket);
+
+	// create own copy of key for storage in table
+	bucket->key = malloc((sizeof *bucket->key) * (strlen(key) + 1));
+	assert(bucket->key);
+	strcpy(bucket->key, key);
+	bucket->value = malloc((sizeof *bucket->key) * (strlen(key) + 5));
 
 	bucket->next = NULL;
 
@@ -50,12 +87,11 @@ Bucket *new_bucket(char *key, char *value,  bool dictionary) {
 }
 
 // Warning: does not free bucket->next
-void free_bucket(Bucket *bucket, bool dictionary) {
+void free_docbucket(Docbucket *bucket) {
 	assert(bucket != NULL);
 	free(bucket->key);
-	// if (!dictionary){
-	// 	free(bucket->value);
-	// }
+	// free(bucket->value);
+
 	free(bucket);
 }
 
@@ -66,10 +102,10 @@ struct table {
 
 
 /* * *
-* HASH TABLE CREATION/DELETION
-*/
+ * HASH TABLE CREATION/DELETION
+ */
 
-HashTable *new_hash_table(int size,  bool dictionary) {
+HashTable *new_hash_table(int size) {
 	HashTable *table = malloc(sizeof *table);
 	assert(table);
 
@@ -84,7 +120,7 @@ HashTable *new_hash_table(int size,  bool dictionary) {
 	return table;
 }
 
-void free_hash_table(HashTable *table,  bool dictionary) {
+void free_hash_table(HashTable *table) {
 	assert(table != NULL);
 
 	int i;
@@ -93,7 +129,50 @@ void free_hash_table(HashTable *table,  bool dictionary) {
 		this_bucket = table->buckets[i];
 		while (this_bucket) {
 			next_bucket = this_bucket->next;
-			free_bucket(this_bucket, dictionary);
+			free_bucket(this_bucket);
+			this_bucket = next_bucket;
+		}
+	}
+
+	free(table);
+}
+
+
+struct doctable {
+	int size;
+	Docbucket **buckets;
+};
+
+
+/* * *
+* HASH TABLE CREATION/DELETION
+*/
+
+DocHashTable *new_hash_doctable(int size ) {
+	DocHashTable *table = malloc(sizeof *table);
+	assert(table);
+
+	table->size = size;
+	table->buckets = malloc(size * (sizeof *table->buckets));
+	assert(table->buckets);
+	int i;
+	for (i = 0; i < size; i++) {
+		table->buckets[i] = NULL;
+	}
+
+	return table;
+}
+
+
+void free_hash_doctable(DocHashTable *table) {
+	assert(table != NULL);
+	int i;
+	for (i = 0; i < table->size; i++) {
+		Docbucket *this_bucket, *next_bucket;
+		this_bucket = table->buckets[i];
+		while (this_bucket) {
+			next_bucket = this_bucket->next;
+			free_docbucket(this_bucket);
 			this_bucket = next_bucket;
 		}
 
@@ -104,37 +183,87 @@ void free_hash_table(HashTable *table,  bool dictionary) {
 
 
 /* * *
-* HASHING HELPER FUNCTIONS
-*/
+ * HASHING HELPER FUNCTIONS
+ */
 
-int h(char *key, int size) {
-	return hash(key, size, HASH_METHOD);
-}
+ // xor hash from lectures, with seed 73802
+ unsigned int seed = 73802;
+ unsigned int h(const char *key, unsigned int size) {
+ 	unsigned int h = seed;
+
+ 	int i;
+ 	for (i = 0; key[i] != '\0'; i++) {
+ 		h = h ^ ((h << 5) + key[i] + (h >> 2));
+ 	}
+
+ 	return h % size;
+ }
+
 bool equal(char *a, char *b) {
 	return strcmp(a, b) == 0;
 }
 
 
 /* * *
-* HASH TABLE FUNCTIONS
-*/
+ * HASH TABLE FUNCTIONS
+ */
 
-void hash_table_put(HashTable *table, char *key, char *value, bool dictionary) {
+
+void hash_table_put(HashTable *table, char *key, int value) {
 
 	assert(table != NULL);
 	assert(key != NULL);
 
 	int hash_value = h(key, table->size);
 
-	if(dictionary){
-		//assuming every word will be unique in dictionary
-		Bucket *new = new_bucket(key, value, dictionary);
-		new->next = table->buckets[hash_value];
-		table->buckets[hash_value] = new;
-	}else{
+	// add it at front of list
+	Bucket *new = new_bucket(key, value);
+	new->next = table->buckets[hash_value];
+	table->buckets[hash_value] = new;
+}
+
+int hash_table_get(HashTable *table, char *key) {
+	assert(table != NULL);
+	assert(key != NULL);
+
+	int hash_value = h(key, table->size);
+	// look for existing key
+	Bucket *bucket = table->buckets[hash_value];
+	Bucket *previous = NULL;
+	while (bucket) {
+		if (equal(key, bucket->key)) {
+
+			// move to front on access
+			if (previous) {
+				previous->next = bucket->next;
+				bucket->next = table->buckets[hash_value];
+				table->buckets[hash_value] = bucket;
+			}
+			return bucket->value;
+		}
+		previous = bucket;
+		bucket = bucket->next;
+	}
+
+	// if key doesn't exist
+	return 0;
+}
+
+/* * *
+* HASH TABLE FUNCTIONS
+*/
+
+void hash_doctable_put(DocHashTable *table, char *key, char *value) {
+
+	assert(table != NULL);
+	assert(key != NULL);
+
+	int hash_value = h(key, table->size);
+
+
 		// look for existing key
-		Bucket *bucket = table->buckets[hash_value];
-		Bucket *previous = NULL;
+		Docbucket *bucket = table->buckets[hash_value];
+		Docbucket *previous = NULL;
 		while (bucket) {
 			if (equal(key, bucket->key)) {
 
@@ -152,13 +281,13 @@ void hash_table_put(HashTable *table, char *key, char *value, bool dictionary) {
 		}
 
 		// if key wasn't found, add it at front of list
-		Bucket *new = new_bucket(key, value, dictionary);
+		Docbucket *new = new_docbucket(key, value);
 		new->next = table->buckets[hash_value];
 		table->buckets[hash_value] = new;
-	}
+
 }
 
-char* hash_table_get(HashTable *table, char *key) {
+char* doc_table_get(DocHashTable *table, char *key) {
 
 	assert(table != NULL);
 	assert(key != NULL);
@@ -166,8 +295,8 @@ char* hash_table_get(HashTable *table, char *key) {
 	int hash_value = h(key, table->size);
 
 	// look for existing key
-	Bucket *bucket = table->buckets[hash_value];
-	Bucket *previous = NULL;
+	Docbucket *bucket = table->buckets[hash_value];
+	Docbucket *previous = NULL;
 	while (bucket) {
 		if (equal(key, bucket->key)) {
 
@@ -177,8 +306,6 @@ char* hash_table_get(HashTable *table, char *key) {
 				bucket->next = table->buckets[hash_value];
 				table->buckets[hash_value] = bucket;
 			}
-			// printf(" getting %s value %s\n",key, bucket->value);
-			// return bucket->value;
 			if (bucket->value) {
 				if(strlen(bucket->value)> 0 ){
 					return bucket->value;
@@ -191,69 +318,40 @@ char* hash_table_get(HashTable *table, char *key) {
 		bucket = bucket->next;
 	}
 
-	// key doesn't exist!
-	// fprintf(stderr, "error: key \"%s\" not found in table\n", key);
+	// key doesn't exist
 	return 0;
 }
 
-bool hash_table_has(HashTable *table, char *key) {
-	assert(table != NULL);
-	assert(key != NULL);
-
-	int hash_value = h(key, table->size);
-
-	// look for existing key
-	Bucket *bucket = table->buckets[hash_value];
-	Bucket *previous = NULL;
-	while (bucket) {
-		if (equal(key, bucket->key)) {
-
-			// move to front on lookup
-			if (previous) {
-				previous->next = bucket->next;
-				bucket->next = table->buckets[hash_value];
-				table->buckets[hash_value] = bucket;
-			}
-
-			return true;
-		}
-		previous = bucket;
-		bucket = bucket->next;
-	}
-
-	// key doesn't exist!
-	return false;
-}
-/* * *
-* PRINTING FUNCTIONS
-*/
-
-void print_hash_table(HashTable *table) {
-	assert(table != NULL);
-	fprint_hash_table(stdout, table);
-}
-
-void fprint_hash_table(FILE *file, HashTable *table) {
-	assert(table != NULL);
-
-	// max width of a table row label
-	int width = snprintf(NULL, 0, "%d", table->size-1);
-
-	int i, j;
-	for (i = 0; i < table->size; i++) {
-		fprintf(file, " %*d|", width, i);
-
-		j = 0;
-		Bucket *bucket;
-		bucket = table->buckets[i];
-		while (bucket && j < PRINT_LIMIT) {
-			fprintf(file, "->(\"%s\": %s)", bucket->key, bucket->value);
-			bucket = bucket->next;
-			j++;
-		}
-		if (bucket) {
-			fprintf(file, "...");
-		}
-		fprintf(file, "\n");
-	}
-}
+// /* * *
+// * PRINTING FUNCTIONS
+// */
+//
+// void print_hash_table(HashTable *table) {
+// 	assert(table != NULL);
+// 	fprint_hash_table(stdout, table);
+// }
+//
+// void fprint_hash_table(FILE *file, HashTable *table) {
+// 	assert(table != NULL);
+//
+// 	// max width of a table row label
+// 	int width = snprintf(NULL, 0, "%d", table->size-1);
+//
+// 	int i, j;
+// 	for (i = 0; i < table->size; i++) {
+// 		fprintf(file, " %*d|", width, i);
+//
+// 		j = 0;
+// 		Bucket *bucket;
+// 		bucket = table->buckets[i];
+// 		while (bucket && j < PRINT_LIMIT) {
+// 			fprintf(file, "->(\"%s\": %s)", bucket->key, bucket->value);
+// 			bucket = bucket->next;
+// 			j++;
+// 		}
+// 		if (bucket) {
+// 			fprintf(file, "...");
+// 		}
+// 		fprintf(file, "\n");
+// 	}
+// }

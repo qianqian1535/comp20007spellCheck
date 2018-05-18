@@ -11,7 +11,7 @@
 #include "list.h"
 
 /*                         DO NOT CHANGE THIS FILE
- * 
+ *
  * DO NOT add or modify any definitions or anything else inside this file.
  *
  * We will test your assignment with an unmodified version of this file. Any
@@ -33,7 +33,7 @@ void free_node(Node *node);
 List *new_list() {
 	List *list = malloc(sizeof *list);
 	assert(list);
-	
+
 	list->head = NULL;
 	list->last = NULL;
 	list->size = 0;
@@ -62,7 +62,7 @@ void free_list(List *list) {
 Node *new_node() {
 	Node *node = malloc(sizeof *node);
 	assert(node);
-	
+
 	return node;
 }
 
@@ -98,7 +98,7 @@ void list_add_start(List *list, void *data) {
 // this operation is O(1)
 void list_add_end(List *list, void *data) {
 	assert(list != NULL);
-	
+
 	// we'll need a new list node to store this data
 	Node *node = new_node();
 	node->data = data;
@@ -111,25 +111,37 @@ void list_add_end(List *list, void *data) {
 		// otherwise, it goes after the current last node
 		list->last->next = node;
 	}
-	
+
 	// place this new node at the end of the list
 	list->last = node;
-	
+
 	// and keep size updated too
 	list->size++;
 }
 
+//add a list to the end of the target list
+//this operation is O(1)
+void append_list(List* original, List* to_add){
+	if (original->size == 0) {
+		original->head = to_add -> head;
+	}else{
+		original->last->next = to_add -> head;
+	}
+	// update end of list
+	original->last = to_add -> last;
+	original->size += to_add -> size;
+}
 // remove and return the front data element from a list
 // this operation is O(1)
 // error if the list is empty (so first ensure list_size() > 0)
 void *list_remove_start(List *list) {
 	assert(list != NULL);
 	assert(list->size > 0);
-	
+
 	// we'll need to save the data to return it
 	Node *start_node = list->head;
 	void *data = start_node->data;
-	
+
 	// then replace the head with its next node (may be null)
 	list->head = list->head->next;
 
@@ -154,11 +166,11 @@ void *list_remove_start(List *list) {
 void *list_remove_end(List *list) {
 	assert(list != NULL);
 	assert(list->size > 0);
-	
+
 	// we'll need to save the data to return it
 	Node *end_node = list->last;
 	void *data = end_node->data;
-	
+
 	// then replace the last with the second-last node (may be null)
 	// (to find this replacement, we'll need to walk the list --- the O(n) bit
 	Node *node = list->head;
@@ -168,7 +180,7 @@ void *list_remove_end(List *list) {
 		node = node->next;
 	}
 	list->last = prev;
-	
+
 	if(list->size == 1) {
 		// if we're removing the last node, the head also needs clearing
 		list->head = NULL;
@@ -197,6 +209,6 @@ int list_size(List *list) {
 // returns whether the list contains no elements (true) or some elements (false)
 bool list_is_empty(List *list) {
 	assert(list != NULL);
-	
+
 	return (list->size==0);
 }

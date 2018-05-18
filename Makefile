@@ -9,7 +9,7 @@ CC     = gcc
 CFLAGS = -Wall -std=c99
 # modify the flags here ^
 EXE    = a2
-OBJ    = main.o list.o spell.o strhash.o hashtable.o
+OBJ    = main.o list.o spell.o hashtable.o
 # add any new object files here ^
 
 # top (default) target
@@ -23,8 +23,7 @@ $(EXE): $(OBJ)
 main.o: list.h spell.h
 spell.o: spell.h list.h hashtable.h
 list.o: list.h
-strhash.o: strhash.h
-hashtable.o: hashtable.h strhash.h
+hashtable.o: hashtable.h
 # ^ add any new dependencies here (for example if you add new modules)
 
 

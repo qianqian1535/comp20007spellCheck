@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 			print_corrected(dictionary, document);
 		}
 		end_t = clock();
-		printf("End of the big task, end_t = %ld\n", end_t - start_t);
+		printf("End of the task, end_t = %ld\n", end_t - start_t);
 
 		double total = (double)(end_t - start_t) / CLOCKS_PER_SEC;
 		printf("Total time taken by CPU: %f secs\n", total  );
